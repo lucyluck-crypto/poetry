@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Poem Experience — go</title>
+<style>
+  body{
+    margin:0;
+    height:100vh;
+    background:white;
+    color:black;
+    font-family:Arial, Helvetica, sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  #start-overlay{
+    position:fixed; inset:0;
+    background:white;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:10;
+    cursor:pointer;
+    transition:opacity .3s ease;
+  }
+  #start-btn{
+    font-family:Arial, Helvetica, sans-serif;
+    font-size:22px;
+    padding:10px 20px;
+    border:2px solid black;
+    color:black;
+    background:white;
+    border-radius:4px;
+  }
+  #poem-line{
+    font-size:26px;
+    max-width:800px;
+    text-align:center;
+    margin:0 auto;
+    opacity:1;
+    transition:opacity .3s ease;
+  }
+  .hide-line{
+    opacity:0;
+  }
+  .caret{
+    display:inline-block;
+    width:8px;
+    height:1em;
+    background:black;
+    margin-left:4px;
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink{ 50%{opacity:0;} }
+</style>
+</head>
+<body>
+
+<div id="start-overlay"><div id="start-btn">go</div></div>
+<div id="poem-line"></div>
+<audio id="ambient-music" src="ambient.mp3" preload="auto" loop></audio>
+
+<script>
+const poem = [
+  '"I want it again." My hand touched his (redacted). I caressed (redacted).',
+  'It sprung up, so hard. He kissed me until I felt a new wave of desire, a desire to respond completely.',
+  'But he said, "It will hurt now. Wait a little while. Can you stay with me, all night? Will you stay?"',
+  'His beautiful hazel-eyed man smiled; now I would belong again - always!',
+  'A thrill shook and burned down my waist then all the way past it.',
+  'What would we go through to satisfy it?',
+  'As my hand was still gently gripping him by his (redacted) the fire seemed far enough;',
+  'far above but on the same surface too as he pressed toward me in an even tender (redacted) fire seemed close.',
+  'like nothing between this skin of each body this place-less space that made love in its infinite freedom,',
+  'or perhaps by its end this time with nothing to do the old was made with that fire or like this with a different pleasure.',
+  'For nothing to want is only and was the freedom of the man so as far as was this for no need he did no want this,',
+  'and his face became the place a great face.',
+  'then only this infinity or a different and other space was the great difference and this was no less.',
+  'I tried to run from it but I couldn\'t.',
+  'Nor did I want to.',
+  'I wanted his (redacted) to (redacted) me so intensely I would never feel anything else again.',
+  'Where did you go?',
+  'I hope you are all still there.',
+  'Would you let me touch you desperately until you didn\'t want it anymore,',
+  'And what if suddenly you did.',
+  'Or maybe instead, I could pretend like I didn\'t want you, and you would take me anyway,',
+  'Just to show me how badly you want me.',
+  'I could pretend like I was upset,',
+  'But I would be so obvious as I always am.',
+  'It\'s so pathetic,',
+  'I hope you like it though.',
+  'I hope that you secretly like it and that it\'s not all bad,',
+  'I hope you all have me inside of your imagination right now.'
+];
+
+const startOverlay = document.getElementById('start-overlay');
+const poemLineEl = document.getElementById('poem-line');
+const audio = document.getElementById('ambient-music');
+
+let running = false;
+
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+function mapRange(v,inMin,inMax,outMin,outMax){
+  const t = Math.min(1, Math.max(0,(v-inMin)/(inMax-inMin)));
+  return outMin + (outMax - outMin) * t;
+}
+
+async function typeLine(text, delay){
+  poemLineEl.classList.remove('hide-line');
+  poemLineEl.innerHTML = '';
+  const span = document.createElement('span');
+  const caret = document.createElement('span');
+  caret.className = 'caret';
+  poemLineEl.appendChild(span);
+  poemLineEl.appendChild(caret);
+  for(let i=0;i<text.length;i++){
+    span.textContent += text[i];
+    await sleep(delay + (Math.random()*delay*0.3));
+  }
+  await sleep(600);
+}
+
+async function fadeOut(){
+  poemLineEl.classList.add('hide-line');
+  await sleep(250);
+  poemLineEl.innerHTML = '';
+  poemLineEl.classList.remove('hide-line');
+}
+
+/* progressive pitch drop + volume + harshness + 45s sharp drop */
+function distortAudio(durationMs){
+  const startTime = performance.now();
+  function step(now){
+    let t = (now - startTime)/durationMs;
+    t = Math.min(1, t);
+
+    // progressive pitch drop
+    let pitch = 0.35 - 0.3*t;
+
+    // sharp drop around 45s (durationMs * 0.375)
+    if(t >= 0.375 && t < 0.38){
+      pitch -= 0.15;
+    }
+    pitch = Math.max(0.05, pitch);
+
+    // volume rises progressively, accelerates after 30%
+    let vol = 0.4 + 0.6*Math.pow(t, 1.5);
+    vol = Math.min(1.0, vol);
+
+    // tiny oscillation for harshness
+    const mod = Math.sin(now*0.005)*0.02;
+    audio.playbackRate = pitch + mod;
+    audio.volume = vol;
+
+    if(t<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+async function playPoem(){
+  running = true;
+  audio.volume = 0.4;
+  audio.playbackRate = 0.35;
+  audio.play().catch(()=>{});
+  distortAudio(120000); // 2 minutes distortion
+
+  for(let i=0;i<poem.length;i++){
+    const d = mapRange(i,0,poem.length-1,75,18);
+    await typeLine(poem[i], d);
+    await fadeOut();
+  }
+
+  // last line caret blinks a little longer
+  poemLineEl.innerHTML += '<span class="caret"></span>';
+  await sleep(2000);
+
+  running = false;
+  startOverlay.style.opacity = 1;
+  startOverlay.style.pointerEvents = 'auto';
+}
+
+startOverlay.addEventListener('click', ()=>{
+  if(running) return;
+  startOverlay.style.opacity = 0;
+  startOverlay.style.pointerEvents = 'none';
+  playPoem();
+});
+</script>
+
+</body>
+</html>
